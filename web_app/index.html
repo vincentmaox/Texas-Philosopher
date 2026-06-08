@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>德州哲学家 · Texas Philosopher</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <!-- Top status bar (Duolingo-style) -->
+  <header id="statusBar">
+    <div class="status-left">
+      <span class="logo">♠ 德州哲学家</span>
+      <span class="level-badge" id="levelBadge">鱼苗 Lv.1</span>
+    </div>
+    <div class="status-center">
+      <div class="resource" title="资金池 · 归零即Game Over">
+        <span class="res-icon">💰</span>
+        <span class="res-label">资金池</span>
+        <span class="res-value" id="poolValue">1000</span>
+      </div>
+      <div class="resource" title="时间池 · 每日恢复30分钟">
+        <span class="res-icon">⏳</span>
+        <span class="res-label">时间池</span>
+        <span class="res-value" id="timeValue">30:00</span>
+      </div>
+      <div class="resource" title="思维评分 · 唯一真排名">
+        <span class="res-icon">🧠</span>
+        <span class="res-label">思维评分</span>
+        <span class="res-value" id="mindValue">0</span>
+      </div>
+      <div class="resource streak" title="连续登录天数 · 中断归零">
+        <span class="res-icon">🔥</span>
+        <span class="res-value" id="streakValue">0</span>
+        <span class="res-label">天连胜</span>
+      </div>
+    </div>
+    <div class="status-right">
+      <button class="nav-btn" data-view="map">地图</button>
+      <button class="nav-btn" data-view="daily">每日</button>
+      <button class="nav-btn" data-view="skills">技能树</button>
+      <button class="nav-btn" data-view="settings">设置</button>
+    </div>
+  </header>
+
+  <!-- View: Map (Slay the Spire style node selection) -->
+  <section id="view-map" class="view active">
+    <div class="map-header">
+      <h2>🗺️ 探宝航海图</h2>
+      <p class="map-subtitle">选择一片海域出航。<strong>密度</strong>=鱼鲨比，<strong>突变</strong>=极限规则。低成本试错优于高投入梭哈。</p>
+    </div>
+    <div id="mapNodes" class="map-grid"></div>
+    <div class="map-footer">
+      <button id="harborEventBtn" class="btn-secondary">⚓ 触发港口事件（消耗3分钟）</button>
+      <button id="refreshMapBtn" class="btn-secondary">🔄 刷新海域（消耗5分钟）</button>
+    </div>
+  </section>
+
+  <!-- View: Game Table -->
+  <section id="view-game" class="view">
+    <div class="game-layout">
+      <!-- Opponents -->
+      <div id="opponentsArea" class="opponents-area"></div>
+
+      <!-- Center: Community cards + pot -->
+      <div class="table-center">
+        <div class="mutations-display" id="mutationsDisplay"></div>
+        <div class="pot-display">
+          <span class="pot-label">底池</span>
+          <span class="pot-value" id="potValue">0</span>
+        </div>
+        <div class="community-cards" id="communityCards"></div>
+        <div class="round-indicator" id="roundIndicator">等待发牌</div>
+      </div>
+
+      <!-- Player area -->
+      <div class="player-area">
+        <div class="player-info">
+          <div class="player-name">你 · <span id="playerPosition">BTN</span></div>
+          <div class="player-chips">本桌筹码: <span id="playerChips">0</span></div>
+        </div>
+        <div class="player-cards" id="playerCards"></div>
+        <div class="action-bar" id="actionBar">
+          <button class="action-btn fold" data-action="fold">弃牌 (F)</button>
+          <button class="action-btn check" data-action="check">过牌 (C)</button>
+          <button class="action-btn call" data-action="call">跟注 <span id="callAmount"></span></button>
+          <div class="raise-controls">
+            <input type="range" id="raiseSlider" min="0" max="100" value="50">
+            <input type="number" id="raiseInput" min="0" value="0">
+            <button class="action-btn raise" data-action="raise">加注 (R)</button>
+            <button class="action-btn allin" data-action="allin">All-in (A)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI dialogue stream -->
+      <aside class="dialogue-pane">
+        <div class="dialogue-header">
+          <span>💬 牌桌实况</span>
+          <button id="chatToggleBtn" class="mini-btn">对AI说话</button>
+        </div>
+        <div id="dialogueStream" class="dialogue-stream"></div>
+        <div id="playerChatBox" class="player-chat-box" style="display:none">
+          <input type="text" id="playerChatInput" placeholder="对桌上AI说点什么...（回车发送）">
+        </div>
+      </aside>
+    </div>
+    <button id="leaveTableBtn" class="btn-leave">⏎ 离开牌桌</button>
+  </section>
+
+  <!-- View: Daily Challenges -->
+  <section id="view-daily" class="view">
+    <h2>📅 每日训练</h2>
+    <div class="daily-streak">
+      <div class="streak-display">🔥 <span id="dailyStreakBig">0</span> 天连续训练</div>
+      <div class="streak-warn" id="streakWarn"></div>
+    </div>
+    <h3>今日挑战</h3>
+    <div id="dailyQuestList" class="quest-list"></div>
+    <h3>本周锦标赛</h3>
+    <div id="weeklyEventBox" class="weekly-box"></div>
+  </section>
+
+  <!-- View: Skill Tree -->
+  <section id="view-skills" class="view">
+    <h2>🌳 思维技能树</h2>
+    <div class="xp-bar">
+      <div class="xp-label">经验值: <span id="xpDisplay">0 / 100</span></div>
+      <div class="xp-track"><div class="xp-fill" id="xpFill"></div></div>
+    </div>
+    <div id="skillTreeGrid" class="skill-grid"></div>
+  </section>
+
+  <!-- View: Settings -->
+  <section id="view-settings" class="view">
+    <h2>⚙️ 设置</h2>
+    <div class="settings-block">
+      <h3>AI 大模型配置（可选）</h3>
+      <p class="hint">配置后，AI 对手会说真人化的台词、对你的语言做出反应。未配置则使用规则模式，游戏仍可玩。</p>
+      <label>API Base URL <input type="text" id="apiBaseInput" placeholder="https://api.openai.com/v1"></label>
+      <label>API Key <input type="password" id="apiKeyInput" placeholder="sk-..."></label>
+      <label>模型名 <input type="text" id="apiModelInput" placeholder="gpt-4o-mini / deepseek-chat / qwen-plus"></label>
+      <label class="ck"><input type="checkbox" id="aiEnabled"> 启用 AI 对话</label>
+      <button id="testApiBtn" class="btn-primary">测试连接</button>
+      <button id="saveApiBtn" class="btn-primary">保存</button>
+      <div id="apiTestResult" class="api-result"></div>
+    </div>
+    <div class="settings-block">
+      <h3>存档管理</h3>
+      <button id="exportSaveBtn" class="btn-secondary">导出存档</button>
+      <button id="importSaveBtn" class="btn-secondary">导入存档</button>
+      <input type="file" id="importFile" style="display:none" accept=".json">
+      <button id="resetSaveBtn" class="btn-danger">⚠️ 重置全部进度</button>
+    </div>
+    <div class="settings-block">
+      <h3>哲学锚定</h3>
+      <ul class="philosophy-list">
+        <li><strong>独立事件</strong>：每一局都是独立事件。上一局的输赢不得影响本局判断。</li>
+        <li><strong>成本管理</strong>：资金池+时间池 比 单局收益更重要。pool不被耗干 &gt; 赢一把大的。</li>
+        <li><strong>鱼塘密度</strong>：低成本判断牌桌是否值得继续。不值得立刻换桌。</li>
+        <li><strong>捡钱而非挣钱</strong>：只打正期望值。"勉强参与"的痛苦远大于"错过机会"的平淡。</li>
+        <li><strong>快速试错</strong>：短时间多局探测，胜过单局过度投入。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Modal: Hand Result -->
+  <div id="handResultModal" class="modal" style="display:none">
+    <div class="modal-content">
+      <h2 id="handResultTitle">本手结算</h2>
+      <div id="handResultBody"></div>
+      <h3>🧠 决策评分</h3>
+      <div id="decisionScoreBox" class="score-box"></div>
+      <button id="nextHandBtn" class="btn-primary">下一手 →</button>
+      <button id="leaveAfterHandBtn" class="btn-secondary">离开牌桌</button>
+    </div>
+  </div>
+
+  <!-- Modal: Daily Reward -->
+  <div id="dailyRewardModal" class="modal" style="display:none">
+    <div class="modal-content">
+      <h2>🎁 每日登录奖励</h2>
+      <p>连续登录第 <strong id="rewardDay">1</strong> 天</p>
+      <p>时间池恢复 +30 分钟</p>
+      <p id="streakBonus"></p>
+      <button id="claimRewardBtn" class="btn-primary">领取</button>
+    </div>
+  </div>
+
+  <!-- Modal: Harbor event -->
+  <div id="harborModal" class="modal" style="display:none">
+    <div class="modal-content">
+      <h2 id="harborTitle">⚓ 港口事件</h2>
+      <p id="harborDesc"></p>
+      <div id="harborChoices"></div>
+    </div>
+  </div>
+
+  <!-- Modal: First-time philosophy intro -->
+  <div id="introModal" class="modal" style="display:none">
+    <div class="modal-content intro">
+      <h2>🌊 欢迎，船长。</h2>
+      <p>这不是一款让你"赢钱"的德州扑克。这是一款<strong>训练你思维</strong>的德州哲学家。</p>
+      <p>你扮演一艘探宝船的船长，在不同密度的鱼塘（牌桌）之间航行。你的胜利不是赚最多的钱，而是<strong>每天都来训练、且让你的"思维评分"持续提升</strong>。</p>
+      <p>核心规则：</p>
+      <ul>
+        <li>资金池归零 = 游戏结束</li>
+        <li>时间池每日恢复，不累积</li>
+        <li>错过一天 = 连胜归零</li>
+        <li>每个 AI 对手都会跟你说话，你也可以跟他们说话</li>
+      </ul>
+      <button id="introOkBtn" class="btn-primary">出航 →</button>
+    </div>
+  </div>
+
+  <!-- Floating quick-feedback toast (Duolingo-style) -->
+  <div id="toastContainer"></div>
+</div>
+
+<script src="js/cards.js"></script>
+<script src="js/handeval.js"></script>
+<script src="js/ai_engine.js"></script>
+<script src="js/llm.js"></script>
+<script src="js/mutations.js"></script>
+<script src="js/scoring.js"></script>
+<script src="js/skills.js"></script>
+<script src="js/map.js"></script>
+<script src="js/daily.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
