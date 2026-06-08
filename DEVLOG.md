@@ -101,3 +101,78 @@ npm run build → 112.39 KB JS（gzip 39 KB），0 TS 错误，48 modules
 
 map → 鱼塘 → 牌桌（fold/call/check/raise/allin） → 报告卡（D 等级 EV -10.1 BB） → 离桌（1000→975 + 已完成） → 刷新 → **持久化生效**
 
+
+---
+
+## 2026-06-08 — 项目文档化：CLAUDE.md / 重建方案 / 开发手册 / 测试方案
+
+| 文件 | 用途 |
+|---|---|
+| `CLAUDE.md` | 项目级 Claude Code 指令（v1+v2 双版本规则、会话日志约定、模型路由） |
+| `docs/德州哲学家 v2 — 完全重建方案.md` | 7 阶段完整重建方案存档 |
+| `v2/DEV_MANUAL.md` | v2 开发手册（架构 + 添加新功能 + 调试） |
+| `v2/MANUAL_TEST_PLAN.md` | QA 人工测试方案 12 章 |
+| `conversation_log/2026-06-08.md` | 当日会话日志 |
+
+Commit: `519358f docs: v2 开发手册 + 人工测试方案 + 会话日志约定`
+
+---
+
+## 2026-06-09 — AAA 视觉升级 + Tauri .exe + 引擎 bug 修复
+
+### 用户反馈起点
+
+> 进入后感觉就是一个网页版的 20 年前游戏，画面粗糙……牌显示很小让人没有沉浸感……对话一闪而过……打牌规则有时候也会错乱……缺乏新手训练模式……最后是一个 exe 文件点击就可以打开一个专业游戏界面。
+
+### 完成内容
+
+| Commit | 摘要 |
+|---|---|
+| `eb5d559` | AAA 视觉升级 + Tauri .exe 打包 + 新手教学 |
+| `949b2c0` | 修复 3 个扑克引擎规则 bug |
+| `56ff15c` | 河牌后牌局不结束 + 加大胜负反馈 |
+
+**1. AAA 视觉升级**
+- 牌面 56×80 → 130×182 px
+- 调色板：GitHub 编辑色 → 暖色赌场木纹 + 金边
+- 牌桌：径向晕影 + 木质外环 + 金色内环 + 聚光渐变 + 隐式品牌字
+- 活跃座位脉冲金光
+- AI 思考 450ms → 1200ms（读小动作窗口）
+
+**2. 持久化对话面板**（替代一闪而过的 Toast）
+- 320 px 右侧 sidebar，8 条历史保留
+- MBTI 头像 + 16 色徽章 + 行动徽章 + 思考过程
+- 旧消息淡化 + 新消息高亮+滑入动画
+
+**3. 5 步 Balatro 风新手教学**
+- 欢迎 → 底牌 → 行动栏 → 公共牌 → 学习模式
+- 首次进入自动弹出，localStorage `tp_v2_tutorial_done` 记忆
+
+**4. Tauri 2 .exe 打包**
+- `v2/src-tauri/` Rust 项目结构
+- `v2/TAURI_BUILD.md` 完整打包指南
+- 产物 ~6 MB NSIS / 10 MB MSI / portable .exe（vs Electron 150+ MB）
+
+**5. 引擎 3 bug 修复**
+- 盲注下标错位（破产座位导致 activeSeats 与 state.seats 不对齐）
+- 街道提前推进（notAllIn ≤ 1 时未给最后玩家决策机会）
+- 加注上限错（max 应为 chips + currentBet）
+
+**6. 河牌结算可见性**
+- phase = showdown/result 时强制隐藏 action bar
+- 3 秒 Toast → 居中大弹窗（标题 + 牌型 + 底池 + 摊牌列表）
+
+### 验证
+
+| 验证 | 状态 |
+|---|---|
+| `npx tsc --noEmit` | 0 errors |
+| `npm run build` | 135.82 KB JS / 45.76 KB gzip |
+| 浏览器加载 + 教学 | ✅ 用户实测 |
+| 牌面大小观感 | ✅ "牌变大了沉浸感变强了" |
+
+### 待办
+
+- All-in 边池场景未测
+- DeepSeek V4 API key 配置后实测对话质量
+- 一次性 Rust 安装 + Tauri 首次打包（需用户提供 1024×1024 图标）

@@ -85,7 +85,7 @@ python -m http.server 8765
 
 ## v2 (`v2/`) — Vite + TypeScript + Canvas 重构
 
-完整重构版本，2026-06-08 完成 Phase 0-7。
+完整重构版本，2026-06-08 完成 Phase 0-7，2026-06-09 完成 AAA 视觉升级 + Tauri 打包。
 
 ### 技术栈
 
@@ -94,14 +94,19 @@ python -m http.server 8765
 - IndexedDB 持久化（3 表：profile/current_run/llm_config）
 - Web Audio API 程序化合成音效
 - DeepSeek V4 增强 + 完整规则引擎降级
+- **Tauri 2** 桌面打包（~6 MB .exe）
 
 ### 快速本地测试
 
 ```bash
 cd v2
 npm install
-npm run dev      # http://localhost:3000
-npm run build    # → dist/，112 KB JS
+npm run dev          # http://localhost:3000
+npm run build        # → dist/，~135 KB JS
+
+# 桌面打包（需 Rust + MSVC，详见 v2/TAURI_BUILD.md）
+npm run tauri:dev
+npm run tauri:build
 ```
 
 ### 关键文档
@@ -110,6 +115,7 @@ npm run build    # → dist/，112 KB JS
 |---|---|
 | `v2/DEV_MANUAL.md` | 开发者手册（架构 + 添加新功能 + 调试） |
 | `v2/MANUAL_TEST_PLAN.md` | QA 人工测试方案（INIT/MAP/GAME/DAILY/LEAGUE/SETTINGS/PERSIST/AI/PROG/RESP/PERF/EDGE） |
+| `v2/TAURI_BUILD.md` | 桌面 .exe 打包指南（Rust 安装 / 图标生成 / 故障排除 / 国内镜像） |
 | `docs/德州哲学家 v2 — 完全重建方案.md` | 完整重建方案（7 阶段） |
 | `DEVLOG.md` | 项目宏观日志 |
 | `conversation_log/YYYY-MM-DD.md` | 每日会话日志 |
@@ -122,6 +128,29 @@ npm run build    # → dist/，112 KB JS
 - **状态机驱动牌局**：所有阶段显式 `phaseChange` 事件
 - **统一 Seat 模型**：人类和 AI 同一数组（沿用 v1 经验）
 - **类型严格**：所有 public API 显式类型注解
+- **PALETTE 集中管理**：颜色全部走 `v2/src/ui/theme/palette.ts`，禁止硬编码
+- **Action Bar 必须跟随 phase**：进入 showdown/result/dealing/idle 必须 `hideActionBar`，否则会出现"过牌后按钮不消失"bug
+
+### v2 关键架构组件
+
+| 模块 | 入口文件 | 备注 |
+|---|---|---|
+| 扑克引擎 | `src/engine/poker-engine.ts` | 状态机驱动，事件订阅模式 |
+| EV 计算 | `src/engine/ev-calc.ts` | preflop 查表 + postflop Monte Carlo 300 次 |
+| 边池 | `src/engine/pot-manager.ts` | calculatePots + distributePot |
+| 16 MBTI AI | `src/ai/personas/` + `decision-engine.ts` | NT/NF/SJ/SP 4 组架构差异 |
+| Canvas 牌桌 | `src/ui/canvas/table-renderer.ts` | 径向晕影 + 木质金边 + 聚光渐变 |
+| 持久对话面板 | `src/ui/components/dialogue-panel.ts` | 320px sidebar，8 条历史 |
+| 新手教学 | `src/ui/components/tutorial-overlay.ts` | 5 步 Balatro 风首次自动弹出 |
+| 结算弹窗 | `src/ui/views/game-screen.ts#showHandResult` | 居中大弹窗显示摊牌结果 |
+| Tauri 壳 | `src-tauri/` | Cargo + tauri.conf.json |
+
+### 已修复的高频 bug（不要再犯）
+
+- **盲注下标错位**：破产座位（chips=0）会让 `activeSeats` 与 `state.seats` 不对齐 — 任何盲注/位置计算必须基于 `state.seats` 索引
+- **街道提前推进**：`notAllIn ≤ 1` 不能直接 advanceStreet，最后一个非 all-in 玩家必须先 actedThisRound 且 currentBet 已 match
+- **加注 max 错**：UI 加注 slider max 是 `chips + currentBet`（总下注目标），不是 chips
+- **河牌不结算**：phase=showdown/result 必须主动隐藏 action bar，引擎不会主动通知 UI 清空
 
 ---
 

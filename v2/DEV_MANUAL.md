@@ -305,3 +305,132 @@ npm run build
 ## 11. 联系
 
 GitHub Issues：https://github.com/vincentmaox/Texas-Philosopher/issues
+
+---
+
+## 12. AAA 视觉系统（2026-06-09 升级）
+
+### 调色板（必走 `src/ui/theme/palette.ts`）
+
+| Token | 色值 | 用途 |
+|---|---|---|
+| `bgDeep` | `#1A0F0A` | 主背景（暖色赌场） |
+| `feltGreen` | `#0F4C3A` | 牌桌毛毡基色 |
+| `woodTrim` | `#3E2817` | 牌桌外环木纹 |
+| `goldTrim` | `#D4AF37` | 金色内环 |
+| `goldTrimBright` | `#F4CF57` | 高光金 |
+| `cardCream` | `#FAF7F0` | 牌面背景 |
+| `cardRed` | `#C8102E` | 红心红方块 |
+| `hotPink` | `#FF3B7C` | 强调色（行动高亮） |
+
+**禁止硬编码颜色** — 所有 UI 必须从 `PALETTE` 取值。新增颜色先加到 palette.ts。
+
+### 牌面规格
+
+- 尺寸：`CARD_W=130, CARD_H=182, CORNER_R=10`
+- 字号：`rank=32, cornerSuit=26, centerSuit=72`
+- 背面：红底 `#7A1F2B` + 对角条纹 + 金色菱形 logo + "哲" 字
+- 阴影：`rgba(0,0,0,0.55), blur 14`
+
+### 牌桌渲染层次（从下到上）
+
+1. `drawBackground()` — 全屏渐变
+2. `drawVignette()` — 径向晕影压暗四角
+3. 木质外环（径向渐变棕色）
+4. 金色内环（3px goldTrim + 1px goldTrimBright）
+5. 毛毡（3-stop 径向渐变 + 顶部聚光）
+6. 隐式品牌字 "德州哲学家 · TEXAS PHILOSOPHER"
+7. 公共牌区
+8. 玩家头像盘（150×64px，圆头像 + MBTI 色首字母）
+9. 活跃座位脉冲金光（`pulse = (Math.sin(time/300)+1)/2`）
+
+### 持久对话面板（替代 Toast）
+
+`src/ui/components/dialogue-panel.ts`：
+- 320 px 右侧 sidebar
+- `MAX_HISTORY = 8` 条
+- 新消息高亮，旧消息淡化（opacity 0.55）
+- `showThinking(seat)` 显示脉冲"X 正在思考..."
+- `addMessage(seat, decision)` 替换思考指示器为完整发言（头像 + MBTI 徽章 + 行动徽章 + 台词 + thinking）
+- MBTI_COLOR map 提供 16 个独特颜色
+
+### 5 步新手教学
+
+`src/ui/components/tutorial-overlay.ts`：
+- 步骤：欢迎 → 底牌 → 行动栏 → 公共牌 → 学习模式
+- localStorage key `tp_v2_tutorial_done` 记忆已完成
+- `GameScreen.maybeAutoTutorial()` 在 `startHand()` 后自动调用
+- 模态卡 + 步骤徽章 "X/5" + 进度条 + 跳过按钮 + "🎲 开始玩吧！"
+
+### AI 思考时间
+
+`game-screen.ts#onTurnStarted` 中 `setTimeout(... , 1200)`：
+- 旧值 450ms 等于强迫快读，AI 显得很蠢
+- 新值 1200ms 是中文台词阅读速度临界点，留出"判读小动作"窗口
+
+---
+
+## 13. Tauri 桌面打包
+
+详见 `v2/TAURI_BUILD.md`。要点：
+
+| 步骤 | 命令 |
+|---|---|
+| 安装 Rust | `winget install Rustlang.Rustup` |
+| 安装 MSVC Build Tools | Visual Studio Installer → "Desktop development with C++" |
+| 生成图标 | `npx @tauri-apps/cli icon path/to/icon-1024.png` |
+| 开发模式（热重载） | `npm run tauri:dev` |
+| 打包 | `npm run tauri:build` |
+
+产物在 `src-tauri/target/release/bundle/`：
+- `nsis/*.exe` — 安装程序（推荐分发）
+- `msi/*.msi` — MSI 安装包
+- `../../../*.exe` — portable 单文件
+
+体积：~6 MB（NSIS）vs Electron 150+ MB。原因：使用系统 WebView2 而非打包 Chromium。
+
+### Vite 配置适配
+
+`vite.config.ts` 关键字段：
+```ts
+clearScreen: false,
+server: { port: 3000, strictPort: true, open: !process.env.TAURI_ENV_PLATFORM },
+envPrefix: ['VITE_', 'TAURI_ENV_*'],
+build: {
+  target: process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari13',
+  sourcemap: !!process.env.TAURI_ENV_DEBUG,
+  minify: !process.env.TAURI_ENV_DEBUG ? 'esbuild' : false,
+}
+```
+
+---
+
+## 14. 高频 bug 案例库
+
+### Bug：盲注下标错位（2026-06-09 修）
+
+- **症状**：人类玩家应是 BB 却被发了 SB；或位置标签和实际下注对应不上
+- **根因**：旧代码 `activeSeats[dealerIndex]`，但 `dealerIndex` 索引的是 `state.seats`。当某座位破产被排除时两个数组不对齐
+- **修复**：统一索引 `state.seats[i]`，用 `nextEligible(start)` 辅助函数跳过空座
+- **预防**：任何"下一个能行动的座位"计算必须基于 `state.seats` + 跳过条件
+
+### Bug：街道提前推进（2026-06-09 修）
+
+- **症状**：preflop SB allin，BB 还没决策就直接到 flop
+- **根因**：`notAllIn.length <= 1` 直接 advanceStreet，忽略了"最后一个非 allin 玩家可能还欠注"
+- **修复**：`notAllIn.length === 1` 时检查 `actedThisRound && currentBet >= state.currentBet`
+- **预防**：编辑 `proceedToNextActor` 时永远检查"是否每个还能行动的玩家都已 act 且 match 当前下注"
+
+### Bug：河牌后 action bar 不消失（2026-06-09 修）
+
+- **症状**：河牌过牌后按钮还在，玩家以为还在等自己
+- **根因**：`updateActionBar` 只在 preflop/flop/turn/river 阶段调用，phase=result 时没人通知它隐藏
+- **修复**：phaseChange 进入 showdown/result/dealing/idle 时显式 `hideActionBar`，`updateActionBar` 入口加 phase 守卫做双保险
+- **预防**：任何 UI 状态都必须在所有 phase 转换中显式处理，不能假定"上一 phase 的状态会被清"
+
+### Bug：加注 max 错（2026-06-09 修）
+
+- **症状**：玩家有 1000 筹码，currentBet=200，加注 slider 上限只有 1000（应该 1200）
+- **根因**：`maxRaise = seat.chips`，应该 `seat.chips + seat.currentBet`（总下注目标，不是新增）
+- **修复**：`maxRaise = seat.chips + seat.currentBet`
+- **预防**：所有 raise/allin 数值必须明确是"总下注目标"还是"新增金额"，引擎一律用前者
