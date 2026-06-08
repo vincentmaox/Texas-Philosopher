@@ -9,12 +9,17 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  clearScreen: false,
   server: {
     port: 3000,
-    open: true,
+    strictPort: true,
+    open: !process.env.TAURI_ENV_PLATFORM,
   },
+  envPrefix: ['VITE_', 'TAURI_ENV_*'],
   build: {
+    target: process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari13',
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: !!process.env.TAURI_ENV_DEBUG,
+    minify: !process.env.TAURI_ENV_DEBUG ? 'esbuild' : false,
   },
 });

@@ -89,6 +89,7 @@ async function bootstrap() {
       });
 
       gameScreen.startHand();
+      gameScreen.maybeAutoTutorial();
     });
 
     // Restore previous run or start a new one

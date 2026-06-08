@@ -1,14 +1,18 @@
 export const PALETTE = {
-  // Table
-  feltGreen: '#1a4731',
-  feltGreenLight: '#1f563b',
-  goldTrim: '#c9a227',
+  // Table — AAA casino feel
+  feltGreen: '#0F4C3A',
+  feltGreenLight: '#1A6B52',
+  feltGreenDark: '#073026',
+  woodTrim: '#3E2817',
+  woodTrimLight: '#5A3A22',
+  goldTrim: '#D4AF37',
+  goldTrimBright: '#F4CF57',
 
-  // Background
-  bgDeep: '#0d1117',
-  bgMid: '#161b22',
-  bgCard: '#21262d',
-  bgElevated: '#30363d',
+  // Background — warm dark room, not GitHub editor
+  bgDeep: '#1A0F0A',
+  bgMid: '#241510',
+  bgCard: '#2E1D16',
+  bgElevated: '#3D2A20',
 
   // Feedback
   correct: '#48BB78',
@@ -22,24 +26,27 @@ export const PALETTE = {
   achievement: '#ECC94B',
   warning: '#F6AD55',
   premium: '#CE82FF',
+  hotPink: '#FF3B7C',
 
   // Cards
   cardWhite: '#FEFEFE',
-  cardRed: '#E53E3E',
-  cardBlack: '#1A202C',
+  cardCream: '#FAF7F0',
+  cardRed: '#C8102E',
+  cardBlack: '#0A0A0A',
+  cardBorder: '#E8E0D0',
 
   // Chips
-  chipRed: '#E53E3E',
-  chipBlue: '#3182CE',
-  chipGreen: '#38A169',
-  chipBlack: '#2D3748',
-  chipGold: '#D69E2E',
-  chipWhite: '#f0f0f0',
+  chipRed: '#C8102E',
+  chipBlue: '#1E5BA8',
+  chipGreen: '#2F8F58',
+  chipBlack: '#1A1A1A',
+  chipGold: '#D4AF37',
+  chipWhite: '#F0EBE0',
 
   // Text
   textPrimary: '#F7FAFC',
-  textSecondary: '#A0AEC0',
-  textDim: '#718096',
+  textSecondary: '#C7B8A8',
+  textDim: '#8A7E70',
 } as const;
 
 export type PaletteColor = keyof typeof PALETTE;
