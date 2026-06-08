@@ -307,6 +307,10 @@ export class GameScreen {
               event.phase === 'turn' || event.phase === 'river') {
             this.updateActionBar();
           }
+          if (event.phase === 'showdown' || event.phase === 'result' ||
+              event.phase === 'dealing' || event.phase === 'idle') {
+            this.hideActionBar();
+          }
           if (event.phase === 'result') {
             this.onHandEnd();
           }
@@ -389,10 +393,24 @@ export class GameScreen {
     await this.engine.startHand();
   }
 
+  private hideActionBar(): void {
+    if (!this.actionBar) return;
+    this.actionBar.style.opacity = '0';
+    this.actionBar.style.pointerEvents = 'none';
+    this.actionBar.innerHTML = '';
+    this.hideRaiseSlider();
+  }
+
   // ==================== Action Bar ====================
 
   private updateActionBar(): void {
     if (!this.actionBar) return;
+
+    const phase = this.engine.getPhase();
+    if (phase === 'showdown' || phase === 'result' || phase === 'dealing' || phase === 'idle') {
+      this.hideActionBar();
+      return;
+    }
 
     const seat = this.engine.getActiveSeat();
     const humanSeat = this.engine.getHumanSeat();
@@ -648,14 +666,75 @@ export class GameScreen {
   private showHandResult(result: HandResult): void {
     const humanSeat = this.engine.getHumanSeat();
     const isWinner = humanSeat && result.winnerIds.includes(humanSeat.id);
+    const seats = this.engine.getState().seats;
 
     if (isWinner) {
       soundManager.playWin();
-      showToast(`赢了! +$${result.potAmount}`, 'success');
     } else {
       soundManager.playLose();
-      showToast('这手输了', 'warning');
     }
+
+    // Build a large prominent result banner
+    const existing = document.getElementById('tp-result-banner');
+    if (existing) existing.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'tp-result-banner';
+    banner.style.cssText = `
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.85);
+      z-index: 100;
+      padding: 28px 48px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(30,18,12,0.97), rgba(12,7,5,0.97));
+      border: 3px solid ${isWinner ? PALETTE.achievement : PALETTE.warning};
+      box-shadow: 0 24px 60px rgba(0,0,0,0.7), 0 0 80px ${isWinner ? PALETTE.achievement + '55' : PALETTE.warning + '55'};
+      text-align: center;
+      min-width: 360px;
+      opacity: 0;
+      transition: opacity 0.35s, transform 0.35s cubic-bezier(0.2,1.4,0.5,1);
+      font-family: inherit;
+    `;
+
+    const winnerNames = result.winnerIds.map(id => seats.find(s => s.id === id)?.name || id).join(' & ');
+    const title = isWinner ? '🏆 你赢了' : '本手结束';
+    const titleColor = isWinner ? PALETTE.achievement : PALETTE.textPrimary;
+
+    let showdownHTML = '';
+    if (result.showdown && result.showdown.length > 0) {
+      showdownHTML = '<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(212,175,55,0.3);font-size:13px;color:' + PALETTE.textSecondary + ';">';
+      for (const s of result.showdown) {
+        const seatObj = seats.find(x => x.id === s.seatId);
+        const name = seatObj?.name || s.seatId;
+        const isWin = result.winnerIds.includes(s.seatId);
+        const cardStr = s.cards.map(c => `${c.rank}${c.suit}`).join(' ');
+        showdownHTML += `<div style="margin:4px 0;${isWin ? 'color:' + PALETTE.achievement + ';font-weight:bold;' : ''}">${name}: ${cardStr} — ${s.handName}${isWin ? ' ✓' : ''}</div>`;
+      }
+      showdownHTML += '</div>';
+    }
+
+    banner.innerHTML = `
+      <div style="font-size:30px;font-weight:bold;color:${titleColor};letter-spacing:2px;">${title}</div>
+      <div style="margin-top:8px;font-size:16px;color:${PALETTE.textSecondary};">${result.handName || ''}</div>
+      <div style="margin-top:10px;font-size:24px;color:${PALETTE.goldTrimBright};font-weight:bold;">底池 $${result.potAmount}</div>
+      <div style="margin-top:6px;font-size:13px;color:${PALETTE.textSecondary};">赢家：${winnerNames}</div>
+      ${showdownHTML}
+      <div style="margin-top:16px;font-size:11px;color:${PALETTE.textDim};">4 秒后自动开始下一手</div>
+    `;
+
+    this.container.appendChild(banner);
+    requestAnimationFrame(() => {
+      banner.style.opacity = '1';
+      banner.style.transform = 'translate(-50%, -50%) scale(1)';
+    });
+
+    window.setTimeout(() => {
+      banner.style.opacity = '0';
+      banner.style.transform = 'translate(-50%, -50%) scale(0.95)';
+      window.setTimeout(() => banner.remove(), 400);
+    }, 3600);
   }
 
   private showHandSummary(records: DecisionRecord[]): void {
