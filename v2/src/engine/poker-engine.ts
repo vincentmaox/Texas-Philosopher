@@ -152,29 +152,37 @@ export class PokerEngine {
       }
     }
 
-    // Post blinds
-    const n = activeSeats.length;
-    if (n === 2) {
-      // Heads-up: dealer is SB
-      this.postBet(activeSeats[this.state.dealerIndex], Math.min(this.sb, activeSeats[this.state.dealerIndex].chips));
-      this.postBet(activeSeats[(this.state.dealerIndex + 1) % n], Math.min(this.bb, activeSeats[(this.state.dealerIndex + 1) % n].chips));
+    // Post blinds — index against state.seats (dealerIndex semantics), not activeSeats
+    const n = this.state.seats.length;
+    const nextEligible = (start: number): number => {
+      let i = start % n;
+      for (let k = 0; k < n; k++) {
+        if (this.state.seats[i].chips > 0 && this.state.seats[i].holeCards.length === 2) return i;
+        i = (i + 1) % n;
+      }
+      return start % n;
+    };
+
+    const numActive = activeSeats.length;
+    let sbIdx: number;
+    let bbIdx: number;
+    let firstActorIdx: number;
+    if (numActive === 2) {
+      // Heads-up: dealer is SB, other is BB, dealer acts first preflop
+      sbIdx = nextEligible(this.state.dealerIndex);
+      bbIdx = nextEligible(sbIdx + 1);
+      firstActorIdx = sbIdx;
     } else {
-      const sbIdx = (this.state.dealerIndex + 1) % n;
-      const bbIdx = (this.state.dealerIndex + 2) % n;
-      this.postBet(activeSeats[sbIdx], Math.min(this.sb, activeSeats[sbIdx].chips));
-      this.postBet(activeSeats[bbIdx], Math.min(this.bb, activeSeats[bbIdx].chips));
+      sbIdx = nextEligible(this.state.dealerIndex + 1);
+      bbIdx = nextEligible(sbIdx + 1);
+      firstActorIdx = nextEligible(bbIdx + 1);
     }
+
+    this.postBet(this.state.seats[sbIdx], Math.min(this.sb, this.state.seats[sbIdx].chips));
+    this.postBet(this.state.seats[bbIdx], Math.min(this.bb, this.state.seats[bbIdx].chips));
 
     this.state.currentBet = this.bb;
     this.state.minRaise = this.bb;
-
-    // Find UTG (or heads-up: dealer acts first)
-    let firstActorIdx: number;
-    if (n === 2) {
-      firstActorIdx = this.state.dealerIndex; // heads-up: dealer is SB, acts first preflop
-    } else {
-      firstActorIdx = (this.state.dealerIndex + 3) % n;
-    }
 
     // Set active to one before first actor, so proceedToNextActor lands on it
     this.state.activeSeatIndex = (firstActorIdx - 1 + n) % n;
@@ -305,10 +313,19 @@ export class PokerEngine {
       return;
     }
 
-    // Check if betting round is complete
-    if (notAllIn.length <= 1 || this.isBettingRoundComplete()) {
+    // Betting round complete check.
+    // Special case: if 0 or 1 player can still act, but a non-allin player owes
+    // chips to match currentBet, they still get one decision (call/fold).
+    if (notAllIn.length === 0 || this.isBettingRoundComplete()) {
       await this.advanceStreet();
       return;
+    }
+    if (notAllIn.length === 1) {
+      const last = notAllIn[0];
+      if (last.actedThisRound && last.currentBet >= this.state.currentBet) {
+        await this.advanceStreet();
+        return;
+      }
     }
 
     // Find next actor

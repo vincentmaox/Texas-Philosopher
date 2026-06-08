@@ -410,7 +410,7 @@ export class GameScreen {
 
     const toCall = this.engine.getCallAmount();
     const minRaise = this.engine.getMinRaise();
-    const maxRaise = seat.chips;
+    const maxRaise = seat.chips + seat.currentBet;
     const pot = this.engine.getState().pot;
 
     // FOLD
