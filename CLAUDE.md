@@ -80,3 +80,82 @@ python -m http.server 8765
 ```
 
 或直接双击 `web_app/index.html`（部分浏览器 file:// 协议限制不影响核心功能）。
+
+---
+
+## v2 (`v2/`) — Vite + TypeScript + Canvas 重构
+
+完整重构版本，2026-06-08 完成 Phase 0-7。
+
+### 技术栈
+
+- Vite 6 + TypeScript 5 + Tailwind CSS 3
+- Canvas 2D 牌桌 + DOM UI
+- IndexedDB 持久化（3 表：profile/current_run/llm_config）
+- Web Audio API 程序化合成音效
+- DeepSeek V4 增强 + 完整规则引擎降级
+
+### 快速本地测试
+
+```bash
+cd v2
+npm install
+npm run dev      # http://localhost:3000
+npm run build    # → dist/，112 KB JS
+```
+
+### 关键文档
+
+| 文档 | 用途 |
+|---|---|
+| `v2/DEV_MANUAL.md` | 开发者手册（架构 + 添加新功能 + 调试） |
+| `v2/MANUAL_TEST_PLAN.md` | QA 人工测试方案（INIT/MAP/GAME/DAILY/LEAGUE/SETTINGS/PERSIST/AI/PROG/RESP/PERF/EDGE） |
+| `docs/德州哲学家 v2 — 完全重建方案.md` | 完整重建方案（7 阶段） |
+| `DEVLOG.md` | 项目宏观日志 |
+| `conversation_log/YYYY-MM-DD.md` | 每日会话日志 |
+
+### v2 开发约定
+
+- **不引入框架**：保持 Vanilla TS，禁止 React/Vue/Svelte
+- **核心-增强双层**：LLM 是增强，规则引擎必须独立可用
+- **事件驱动**：PokerEngine emit 事件，UI 订阅响应，不直接耦合
+- **状态机驱动牌局**：所有阶段显式 `phaseChange` 事件
+- **统一 Seat 模型**：人类和 AI 同一数组（沿用 v1 经验）
+- **类型严格**：所有 public API 显式类型注解
+
+---
+
+## 会话日志约定
+
+每次开发会话结束前，将会话要点写入：
+
+```
+conversation_log/YYYY-MM-DD.md
+```
+
+**格式**：
+- 顶部：会话概要（主题 + 状态）
+- 主体：完成内容 + 关键决策 + 文件清单 + commit 引用
+- 底部：剩余工作 + 项目统计
+
+**保存内容**：
+- ✅ 架构决策与理由
+- ✅ 新增/修改文件清单
+- ✅ Git commit hash
+- ✅ 测试结果
+- ✅ 模型路由信息（如使用了 subagent）
+- ❌ 不保存逐字对话（用户已读过）
+- ❌ 不保存密钥/token
+
+**同日多次会话**：追加到同一文件，用 `---` + `## 续：...` 分段。
+
+---
+
+## 模型路由（CC Switch）
+
+通过火山方舟代理：
+- `sonnet` → **GLM-5.1**（主力编程）
+- `opus` → **kimi-k2.6**（视觉/截图/PDF 分析）
+- `haiku` → **deepseek-v4-pro**（中文写作/复盘/文档）
+
+子 agent 自动路由：视觉任务 dispatch opus 子 agent，中文文档 dispatch haiku 子 agent。
