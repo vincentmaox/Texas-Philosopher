@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+:root {
+  --felt-green: #1a4731;
+  --felt-green-light: #1f563b;
+  --gold-trim: #c9a227;
+  --bg-deep: #0d1117;
+  --bg-mid: #161b22;
+  --bg-card: #21262d;
+  --bg-elevated: #30363d;
+  --correct: #48BB78;
+  --bad: #FC8181;
+  --info: #4299E1;
+  --achievement: #ECC94B;
+  --warning: #F6AD55;
+  --premium: #CE82FF;
+  --text-primary: #F7FAFC;
+  --text-secondary: #A0AEC0;
+  --text-dim: #718096;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  user-select: none;
+}
+
+.view {
+  display: none;
+  width: 100%;
+  height: 100%;
+}
+.view.active {
+  display: flex;
+}
+
+.nav-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+.nav-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+.nav-btn.active {
+  background: var(--bg-elevated);
+  color: var(--achievement);
+}
+
+/* Canvas container */
+#poker-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
